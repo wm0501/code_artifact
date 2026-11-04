@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打工人实时薪资计算器 - 看着钱涨</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        cyber: {
+                            dark: '#0d1117',
+                            card: '#161b22',
+                            border: '#30363d',
+                            accent: '#10b981'
+                        }
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'coin-bounce': 'coinBounce 0.6s ease-out',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)' },
+                            '50%': { boxShadow: '0 0 30px rgba(245, 158, 11, 0.5)' },
+                        },
+                        coinBounce: {
+                            '0%': { transform: 'translateY(0) scale(1)' },
+                            '50%': { transform: 'translateY(-6px) scale(1.05)' },
+                            '100%': { transform: 'translateY(0) scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter & JetBrains Mono -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.3);
+            border-radius: 3px;
+        }
+        .glow-text {
+            text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+        }
+        .glow-text-green {
+            text-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-cyber-dark text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-300 pb-12">
+
+    <!-- Header / Navbar -->
+    <header class="border-b border-gray-200 dark:border-cyber-border bg-white/80 dark:bg-cyber-card/80 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-5xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center shadow-lg text-white font-bold text-xl">
+                    <i class="fa-solid fa-sack-dollar"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-amber-500 to-yellow-400 bg-clip-text text-transparent">打工人实时印钞机</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">看着数字上涨 · 摸鱼快乐加倍</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- Config Drawer Toggle Button -->
+                <button id="toggleConfigBtn" class="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium transition flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-amber-500"></i>
+                    <span class="hidden sm:inline">薪资参数设置</span>
+                </button>
+                
+                <!-- Theme Toggle Button -->
+                <button id="themeToggleBtn" class="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium transition">
+                    <i class="fa-solid fa-sun text-amber-500 hidden dark:block"></i>
+                    <i class="fa-solid fa-moon text-indigo-600 dark:hidden"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 pt-6 space-y-6">
+
+        <!-- Banner / Status Alert -->
+        <div id="statusBanner" class="rounded-2xl p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-3">
+                <span id="statusBadge" class="px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white animate-pulse">
+                    工作中
+                </span>
+                <span id="statusText" class="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                    正在努力打工，金币持续到账中...
+                </span>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-mono-num text-gray-500 dark:text-gray-400">
+                <div>发薪日倒计时: <span id="paydayCountdown" class="font-bold text-amber-500 dark:text-amber-400">-- 天</span></div>
+            </div>
+        </div>
+
+        <!-- Main Display Card (Real-time Earned Money) -->
+        <div class="rounded-3xl p-6 sm:p-10 bg-white dark:bg-cyber-card border border-gray-200 dark:border-cyber-border shadow-xl relative overflow-hidden animate-pulse-glow">
+            <!-- Background Decorative Glow -->
+            <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-10 -top-10 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="text-center relative z-10 space-y-3">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+                    <i class="fa-solid fa-coins animate-spin" style="animation-duration: 3s;"></i>
+                    今日已入账金额 (元)
+                </div>
+
+                <!-- HUGE REAL-TIME MONEY COUNTER -->
+                <div class="flex items-baseline justify-center gap-1 font-mono-num font-extrabold text-4xl sm:text-6xl md:text-7xl text-amber-500 dark:text-amber-400 glow-text tracking-tight my-2">
+                    <span class="text-2xl sm:text-4xl select-none">¥</span>
+                    <span id="todayEarned">0.00000</span>
+                </div>
+
+                <!-- Rate display (Per Sec / Per Min / Per Hour) -->
+                <div class="grid grid-cols-3 gap-2 max-w-lg mx-auto pt-2 border-t border-gray-100 dark:border-gray-800 text-xs sm:text-sm">
+                    <div class="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                        <div class="text-gray-400 text-xs">秒薪</div>
+                        <div class="font-mono-num font-bold text-emerald-600 dark:text-emerald-400" id="perSecEarn">¥0.000</div>
+                    </div>
+                    <div class="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                        <div class="text-gray-400 text-xs">分薪</div>
+                        <div class="font-mono-num font-bold text-emerald-600 dark:text-emerald-400" id="perMinEarn">¥0.00</div>
+                    </div>
+                    <div class="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                        <div class="text-gray-400 text-xs">时薪</div>
+                        <div class="font-mono-num font-bold text-emerald-600 dark:text-emerald-400" id="perHourEarn">¥0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Bar Section -->
+            <div class="mt-8 space-y-2">
+                <div class="flex justify-between text-xs sm:text-sm font-semibold">
+                    <span class="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <i class="fa-regular fa-clock"></i> 今日工作进度
+                    </span>
+                    <span id="todayProgressText" class="font-mono-num text-amber-500 dark:text-amber-400">0.0%</span>
+                </div>
+                <div class="w-full bg-gray-200 dark:bg-gray-800 h-4 rounded-full overflow-hidden p-0.5 shadow-inner">
+                    <div id="todayProgressBar" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-full rounded-full transition-all duration-300 w-0 relative">
+                        <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-xs text-gray-400 font-mono-num pt-1">
+                    <span id="startTimeLabel">09:00 上班</span>
+                    <span id="remainingTimeLabel">剩余时间: 00:00:00</span>
+                    <span id="endTimeLabel">18:00 下班</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grid Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Monthly Earned -->
+            <div class="rounded-2xl p-5 bg-white dark:bg-cyber-card border border-gray-200 dark:border-cyber-border shadow-sm flex flex-col justify-between">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400">本月已赚金额</span>
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-check"></i>
+                    </div>
+                </div>
+                <div class="my-3">
+                    <div class="text-2xl sm:text-3xl font-extrabold font-mono-num text-gray-800 dark:text-gray-100" id="monthEarned">
+                        ¥0.00
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">包含本月前 <span id="passedDaysCount">0</span> 天的累计收入</p>
+                </div>
+                <div class="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                    <div id="monthProgressBar" class="bg-blue-500 h-full w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- Overtime & Extra -->
+            <div class="rounded-2xl p-5 bg-white dark:bg-cyber-card border border-gray-200 dark:border-cyber-border shadow-sm flex flex-col justify-between">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400">加班与工时统计</span>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                        <i class="fa-solid fa-user-clock"></i>
+                    </div>
+                </div>
+                <div class="my-3 space-y-1">
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>日有效工时:</span>
+                        <span id="dailyWorkHours" class="font-bold font-mono-num text-gray-700 dark:text-gray-200">8.0 小时</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>午休时长:</span>
+                        <span id="lunchHours" class="font-bold font-mono-num text-gray-700 dark:text-gray-200">1.0 小时</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                        <span>当前是否加班:</span>
+                        <span id="overtimeStatus" class="font-bold font-mono-num text-emerald-500">否</span>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-2 flex justify-between">
+                    <span>月计薪天数</span>
+                    <span id="monthlyDaysLabel" class="font-mono-num font-semibold text-gray-600 dark:text-gray-300">21.75 天</span>
+                </div>
+            </div>
+
+            <!-- Slacking Off Equivalents (Fun conversion) -->
+            <div class="rounded-2xl p-5 bg-white dark:bg-cyber-card border border-gray-200 dark:border-cyber-border shadow-sm flex flex-col justify-between">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold uppercase tracking-wider text-gray-400">今日成果实时换算</span>
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                </div>
+                <div class="my-2 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-400 flex items-center gap-1.5"><i class="fa-solid fa-burger text-amber-500"></i> 麦当劳套餐 (¥30)</span>
+                        <span id="countMcDonald" class="font-mono-num font-bold text-gray-800 dark:text-gray-100">0.0 份</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-400 flex items-center gap-1.5"><i class="fa-solid fa-cup-togo text-pink-500"></i> 奶茶 (¥15)</span>
+                        <span id="countMilkTea" class="font-mono-num font-bold text-gray-800 dark:text-gray-100">0.0 杯</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-600 dark:text-gray-400 flex items-center gap-1.5"><i class="fa-solid fa-box text-blue-500"></i> 摸鱼工时(纯赚)</span>
+                        <span id="countSlackingMoney" class="font-mono-num font-bold text-emerald-500">¥0.0</span>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-400 border-t border-gray-100 dark:border-gray-800 pt-2 text-right">
+                    继续保持，马上就能干饭！
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Milestones / Achievement Badges -->
+        <div class="rounded-2xl p-5 bg-white dark:bg-cyber-card border border-gray-200 dark:border-cyber-border shadow-sm">
+            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-trophy text-amber-500"></i> 今日打工成就解锁
+            </h3>
+            <div id="achievementGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <!-- Achievements generated dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Configuration Modal / Drawer -->
+    <div id="configModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end opacity-0 pointer-events-none transition-opacity duration-300">
+        <div id="configContent" class="w-full max-w-md bg-white dark:bg-cyber-card h-full shadow-2xl p-6 overflow-y-auto transform translate-x-full transition-transform duration-300 flex flex-col justify-between">
+            <div class="space-y-6">
+                <!-- Modal Header -->
+                <div class="flex justify-between items-center border-b border-gray-200 dark:border-cyber-border pb-4">
+                    <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-amber-500"></i> 打工参数设置
+                    </h2>
+                    <button id="closeConfigBtn" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+
+                <!-- Form Controls -->
+                <form id="configForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">月薪 / 税前综合月薪 (元)</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2.5 text-gray-400 font-bold">¥</span>
+                            <input type="number" id="inputSalary" min="0" step="100" class="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm" placeholder="如 10000">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">月计薪工作天数 (标准 21.75 天)</label>
+                        <input type="number" id="inputWorkDays" min="1" max="31" step="0.25" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm" placeholder="21.75">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">上班时间</label>
+                            <input type="time" id="inputWorkStart" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">下班时间</label>
+                            <input type="time" id="inputWorkEnd" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">午休开始时间</label>
+                            <input type="time" id="inputLunchStart" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">午休结束时间</label>
+                            <input type="time" id="inputLunchEnd" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">每月发薪日 (1 - 31日)</label>
+                        <input type="number" id="inputPayday" min="1" max="31" class="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono-num text-sm" placeholder="如 10">
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2">
+                        <input type="checkbox" id="inputOvertime" class="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 dark:bg-gray-800 dark:border-gray-700">
+                        <label for="inputOvertime" class="text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">开启加班算薪模式 (超过下班时间继续计算收益)</label>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="pt-6 border-t border-gray-200 dark:border-cyber-border space-y-2">
+                <button id="saveConfigBtn" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-lg shadow-amber-500/30 transition">
+                    保存配置并实时生效
+                </button>
+                <button id="resetConfigBtn" class="w-full py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 text-xs transition">
+                    恢复默认设置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <script>
+        // --- 1. DEFAULT CONFIGURATION & STATE ---
+        const defaultConfig = {
+            salary: 10000,
+            workDays: 21.75,
+            workStart: "09:00",
+            workEnd: "18:00",
+            lunchStart: "12:00",
+            lunchEnd: "13:00",
+            payday: 10,
+            allowOvertime: true
+        };
+
+        let config = { ...defaultConfig };
+        let achievements = [
+            { id: 'start', name: '开启打工', target: 0.01, icon: 'fa-shoe-prints', unlocked: false },
+            { id: 'breakfast', name: '赚够早餐 (¥10)', target: 10, icon: 'fa-egg', unlocked: false },
+            { id: 'milktea', name: '奶茶自由 (¥15)', target: 15, icon: 'fa-mug-hot', unlocked: false },
+            { id: 'mcdonald', name: '麦当劳自由 (¥30)', target: 30, icon: 'fa-burger', unlocked: false },
+            { id: 'halfDay', name: '半日工时', target: 0, icon: 'fa-battery-half', unlocked: false, dynamic: 'half' },
+            { id: 'fullDay', name: '全天完工', target: 0, icon: 'fa-flag-checkered', unlocked: false, dynamic: 'full' }
+        ];
+
+        // --- 2. DOM ELEMENTS ---
+        const DOM = {
+            todayEarned: document.getElementById('todayEarned'),
+            perSecEarn: document.getElementById('perSecEarn'),
+            perMinEarn: document.getElementById('perMinEarn'),
+            perHourEarn: document.getElementById('perHourEarn'),
+            todayProgressBar: document.getElementById('todayProgressBar'),
+            todayProgressText: document.getElementById('todayProgressText'),
+            startTimeLabel: document.getElementById('startTimeLabel'),
+            endTimeLabel: document.getElementById('endTimeLabel'),
+            remainingTimeLabel: document.getElementById('remainingTimeLabel'),
+            monthEarned: document.getElementById('monthEarned'),
+            monthProgressBar: document.getElementById('monthProgressBar'),
+            passedDaysCount: document.getElementById('passedDaysCount'),
+            dailyWorkHours: document.getElementById('dailyWorkHours'),
+            lunchHours: document.getElementById('lunchHours'),
+            overtimeStatus: document.getElementById('overtimeStatus'),
+            monthlyDaysLabel: document.getElementById('monthlyDaysLabel'),
+            countMcDonald: document.getElementById('countMcDonald'),
+            countMilkTea: document.getElementById('countMilkTea'),
+            countSlackingMoney: document.getElementById('countSlackingMoney'),
+            statusBadge: document.getElementById('statusBadge'),
+            statusText: document.getElementById('statusText'),
+            paydayCountdown: document.getElementById('paydayCountdown'),
+            achievementGrid: document.getElementById('achievementGrid'),
+            // Config elements
+            configModal: document.getElementById('configModal'),
+            configContent: document.getElementById('configContent'),
+            toggleConfigBtn: document.getElementById('toggleConfigBtn'),
+            closeConfigBtn: document.getElementById('closeConfigBtn'),
+            saveConfigBtn: document.getElementById('saveConfigBtn'),
+            resetConfigBtn: document.getElementById('resetConfigBtn'),
+            themeToggleBtn: document.getElementById('themeToggleBtn'),
+            // Form inputs
+            inputSalary: document.getElementById('inputSalary'),
+            inputWorkDays: document.getElementById('inputWorkDays'),
+            inputWorkStart: document.getElementById('inputWorkStart'),
+            inputWorkEnd: document.getElementById('inputWorkEnd'),
+            inputLunchStart: document.getElementById('inputLunchStart'),
+            inputLunchEnd: document.getElementById('inputLunchEnd'),
+            inputPayday: document.getElementById('inputPayday'),
+            inputOvertime: document.getElementById('inputOvertime')
+        };
+
+        // --- 3. STORAGE LOGIC ---
+        function loadConfig() {
+            const saved = localStorage.getItem('salary_calculator_config');
+            if (saved) {
+                try {
+                    config = { ...defaultConfig, ...JSON.parse(saved) };
+                } catch(e) {
+                    config = { ...defaultConfig };
+                }
+            }
+            populateForm();
+        }
+
+        function saveConfigFromForm() {
+            config.salary = parseFloat(DOM.inputSalary.value) || 0;
+            config.workDays = parseFloat(DOM.inputWorkDays.value) || 21.75;
+            config.workStart = DOM.inputWorkStart.value || "09:00";
+            config.workEnd = DOM.inputWorkEnd.value || "18:00";
+            config.lunchStart = DOM.inputLunchStart.value || "12:00";
+            config.lunchEnd = DOM.inputLunchEnd.value || "13:00";
+            config.payday = parseInt(DOM.inputPayday.value) || 10;
+            config.allowOvertime = DOM.inputOvertime.checked;
+
+            localStorage.setItem('salary_calculator_config', JSON.stringify(config));
+            showToast("设置已保存并自动更新生效！");
+            closeConfigDrawer();
+            resetAchievements();
+        }
+
+        function populateForm() {
+            DOM.inputSalary.value = config.salary;
+            DOM.inputWorkDays.value = config.workDays;
+            DOM.inputWorkStart.value = config.workStart;
+            DOM.inputWorkEnd.value = config.workEnd;
+            DOM.inputLunchStart.value = config.lunchStart;
+            DOM.inputLunchEnd.value = config.lunchEnd;
+            DOM.inputPayday.value = config.payday;
+            DOM.inputOvertime.checked = config.allowOvertime;
+        }
+
+        // --- 4. TIME & CALCULATION HELPERS ---
+        function parseTimeToMinutes(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        function getSecondsFromStartOfDay(date) {
+            return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds() + date.getMilliseconds() / 1000;
+        }
+
+        function calculateRates() {
+            const dailySalary = config.salary / config.workDays;
+            
+            // Calculate effective work seconds per day
+            const startMin = parseTimeToMinutes(config.workStart);
+            const endMin = parseTimeToMinutes(config.workEnd);
+            const lunchStartMin = parseTimeToMinutes(config.lunchStart);
+            const lunchEndMin = parseTimeToMinutes(config.lunchEnd);
+
+            let totalMinutes = endMin - startMin;
+            let lunchMinutes = 0;
+
+            if (lunchEndMin > lunchStartMin && lunchStartMin >= startMin && lunchEndMin <= endMin) {
+                lunchMinutes = lunchEndMin - lunchStartMin;
+                totalMinutes -= lunchMinutes;
+            }
+
+            const effectiveWorkHours = Math.max(totalMinutes / 60, 0.1); // Avoid division by 0
+            const totalWorkSeconds = effectiveWorkHours * 3600;
+
+            const secondRate = dailySalary / totalWorkSeconds;
+            const minuteRate = secondRate * 60;
+            const hourRate = secondRate * 3600;
+
+            return {
+                dailySalary,
+                effectiveWorkHours,
+                lunchHours: lunchMinutes / 60,
+                secondRate,
+                minuteRate,
+                hourRate,
+                startSec: startMin * 60,
+                endSec: endMin * 60,
+                lunchStartSec: lunchStartMin * 60,
+                lunchEndSec: lunchEndMin * 60
+            };
+        }
+
+        // --- 5. MAIN CORE REAL-TIME LOOP ---
+        function updateDashboard() {
+            const now = new Date();
+            const rates = calculateRates();
+
+            const currentSec = getSecondsFromStartOfDay(now);
+
+            // Update Labels
+            DOM.startTimeLabel.innerText = `${config.workStart} 上班`;
+            DOM.endTimeLabel.innerText = `${config.workEnd} 下班`;
+            DOM.dailyWorkHours.innerText = `${rates.effectiveWorkHours.toFixed(1)} 小时`;
+            DOM.lunchHours.innerText = `${rates.lunchHours.toFixed(1)} 小时`;
+            DOM.monthlyDaysLabel.innerText = `${config.workDays} 天`;
+
+            // Calculate Today's Earned Money & Work Progress
+            let workedSecondsToday = 0;
+            let status = 'working'; // 'before', 'working', 'lunch', 'after', 'overtime'
+
+            if (currentSec < rates.startSec) {
+                // Before work
+                status = 'before';
+                workedSecondsToday = 0;
+            } else if (currentSec >= rates.endSec) {
+                // After work
+                if (config.allowOvertime) {
+                    status = 'overtime';
+                    // Full regular day + overtime
+                    const overtimeSec = currentSec - rates.endSec;
+                    const totalRegularSec = rates.effectiveWorkHours * 3600;
+                    workedSecondsToday = totalRegularSec + overtimeSec;
+                } else {
+                    status = 'after';
+                    workedSecondsToday = rates.effectiveWorkHours * 3600;
+                }
+            } else {
+                // During normal work hours
+                if (currentSec >= rates.lunchStartSec && currentSec < rates.lunchEndSec) {
+                    status = 'lunch';
+                    // Paid time up to lunch start
+                    workedSecondsToday = Math.max(0, rates.lunchStartSec - rates.startSec);
+                } else if (currentSec >= rates.lunchEndSec) {
+                    status = 'working';
+                    // Time after lunch minus lunch break
+                    const totalElapsed = currentSec - rates.startSec;
+                    const lunchDuration = rates.lunchEndSec - rates.lunchStartSec;
+                    workedSecondsToday = Math.max(0, totalElapsed - lunchDuration);
+                } else {
+                    status = 'working';
+                    workedSecondsToday = Math.max(0, currentSec - rates.startSec);
+                }
+            }
+
+            const todayEarned = workedSecondsToday * rates.secondRate;
+
+            // Render Money with high precision (5 decimals for live action)
+            DOM.todayEarned.innerText = todayEarned.toFixed(5);
+            DOM.perSecEarn.innerText = `¥${rates.secondRate.toFixed(4)}`;
+            DOM.perMinEarn.innerText = `¥${rates.minuteRate.toFixed(2)}`;
+            DOM.perHourEarn.innerText = `¥${rates.hourRate.toFixed(2)}`;
+
+            // Render Progress Bar
+            const totalStandardSec = rates.effectiveWorkHours * 3600;
+            let progressPercent = (workedSecondsToday / totalStandardSec) * 100;
+            if (progressPercent > 100) progressPercent = 100;
+            if (progressPercent < 0) progressPercent = 0;
+
+            DOM.todayProgressBar.style.width = `${progressPercent.toFixed(2)}%`;
+            DOM.todayProgressText.innerText = `${progressPercent.toFixed(1)}%`;
+
+            // Remaining Time Calculation
+            let remainingSec = rates.endSec - currentSec;
+            if (remainingSec < 0) remainingSec = 0;
+            
+            const remH = Math.floor(remainingSec / 3600).toString().padStart(2, '0');
+            const remM = Math.floor((remainingSec % 3600) / 60).toString().padStart(2, '0');
+            const remS = Math.floor(remainingSec % 60).toString().padStart(2, '0');
+            
+            DOM.remainingTimeLabel.innerText = status === 'after' || status === 'overtime' 
+                ? '已到下班时间！' 
+                : `剩余时间: ${remH}:${remM}:${remS}`;
+
+            // Update Status Banner
+            updateStatusBanner(status);
+
+            // Calculate Monthly Earned (Past workdays in month + today)
+            const currentDay = now.getDate();
+            // Estimate workdays passed in this month (approx ratio)
+            const passedWorkDays = Math.max(0, Math.floor((currentDay - 1) * (config.workDays / 30)));
+            const baseMonthEarned = passedWorkDays * rates.dailySalary;
+            const totalMonthEarned = baseMonthEarned + todayEarned;
+
+            DOM.monthEarned.innerText = `¥${totalMonthEarned.toFixed(2)}`;
+            DOM.passedDaysCount.innerText = passedWorkDays;
+            
+            // Monthly Progress
+            const monthProgress = Math.min(100, (totalMonthEarned / config.salary) * 100);
+            DOM.monthProgressBar.style.width = `${monthProgress.toFixed(1)}%`;
+
+            // Slacking Equivalents
+            DOM.countMcDonald.innerText = `${(todayEarned / 30).toFixed(1)} 份`;
+            DOM.countMilkTea.innerText = `${(todayEarned / 15).toFixed(1)} 杯`;
+            DOM.countSlackingMoney.innerText = `¥${todayEarned.toFixed(1)}`;
+
+            // Payday Countdown
+            updatePaydayCountdown(now);
+
+            // Check Achievements
+            checkAchievements(todayEarned, progressPercent, rates.dailySalary);
+        }
+
+        // Update status text & color
+        function updateStatusBanner(status) {
+            const badge = DOM.statusBadge;
+            const text = DOM.statusText;
+            const overtimeStatus = DOM.overtimeStatus;
+
+            overtimeStatus.innerText = "否";
+            overtimeStatus.className = "font-bold font-mono-num text-emerald-500";
+
+            switch (status) {
+                case 'before':
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-blue-500 text-white";
+                    badge.innerText = "未到上班时间";
+                    text.innerText = "还没到上班点，蓄势待发中，准备开始印钞！";
+                    break;
+                case 'working':
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white animate-pulse";
+                    badge.innerText = "打工中";
+                    text.innerText = "正在疯狂打工中，金币持续到账 +1 +1 +1...";
+                    break;
+                case 'lunch':
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white";
+                    badge.innerText = "午休中";
+                    text.innerText = "午饭时间！不扣工时，安心干饭，补充能量！";
+                    break;
+                case 'after':
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-indigo-500 text-white";
+                    badge.innerText = "已下班";
+                    text.innerText = "恭喜下班！今日打工任务完成，快去享受生活！";
+                    break;
+                case 'overtime':
+                    badge.className = "px-3 py-1 rounded-full text-xs font-bold bg-purple-600 text-white animate-pulse";
+                    badge.innerText = "加班中";
+                    text.innerText = "触发加班模式！额外工时收益正在疯狂暴涨中...";
+                    overtimeStatus.innerText = "是 (计薪中)";
+                    overtimeStatus.className = "font-bold font-mono-num text-purple-500";
+                    break;
+            }
+        }
+
+        // Calculate Days till next Payday
+        function updatePaydayCountdown(now) {
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            let targetPayday = new Date(currentYear, currentMonth, config.payday);
+
+            if (now > targetPayday) {
+                // Next month payday
+                targetPayday = new Date(currentYear, currentMonth + 1, config.payday);
+            }
+
+            const diffTime = targetPayday - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            DOM.paydayCountdown.innerText = `${diffDays} 天`;
+        }
+
+        // --- 6. ACHIEVEMENTS SYSTEM ---
+        function renderAchievements() {
+            DOM.achievementGrid.innerHTML = '';
+            achievements.forEach(ach => {
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border flex items-center gap-3 transition-all duration-300 ${
+                    ach.unlocked 
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-400' 
+                        : 'bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-800 text-gray-400 opacity-60'
+                }`;
+
+                card.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${ach.unlocked ? 'bg-amber-500 text-white shadow-md' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'}">
+                        <i class="fa-solid ${ach.icon}"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold">${ach.name}</div>
+                        <div class="text-[10px] opacity-75">${ach.unlocked ? '已解锁' : '未解锁'}</div>
+                    </div>
+                `;
+                DOM.achievementGrid.appendChild(card);
+            });
+        }
+
+        function checkAchievements(todayEarned, progressPercent, dailySalary) {
+            achievements.forEach(ach => {
+                let targetValue = ach.target;
+                if (ach.dynamic === 'half') targetValue = dailySalary * 0.5;
+                if (ach.dynamic === 'full') targetValue = dailySalary;
+
+                if (!ach.unlocked && todayEarned >= targetValue && targetValue > 0) {
+                    ach.unlocked = true;
+                    renderAchievements();
+                    showToast(`🎉 成就解锁：${ach.name}！`);
+                }
+            });
+        }
+
+        function resetAchievements() {
+            achievements.forEach(a => a.unlocked = false);
+            renderAchievements();
+        }
+
+        // --- 7. TOAST NOTIFICATIONS ---
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'px-4 py-3 rounded-xl bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xl text-xs font-bold flex items-center gap-2 transform translate-y-5 opacity-0 transition-all duration-300 pointer-events-auto';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-amber-500"></i> ${message}`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-5', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // --- 8. MODAL & THEME LOGIC ---
+        function openConfigDrawer() {
+            DOM.configModal.classList.remove('pointer-events-none', 'opacity-0');
+            DOM.configContent.classList.remove('translate-x-full');
+        }
+
+        function closeConfigDrawer() {
+            DOM.configModal.classList.add('opacity-0', 'pointer-events-none');
+            DOM.configContent.classList.add('translate-x-full');
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('salary_theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('salary_theme', 'dark');
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('salary_theme');
+            if (savedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        // --- 9. EVENT LISTENERS & INITIALIZATION ---
+        function initEvents() {
+            DOM.toggleConfigBtn.addEventListener('click', openConfigDrawer);
+            DOM.closeConfigBtn.addEventListener('click', closeConfigDrawer);
+            DOM.configModal.addEventListener('click', (e) => {
+                if (e.target === DOM.configModal) closeConfigDrawer();
+            });
+
+            DOM.saveConfigBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                saveConfigFromForm();
+            });
+
+            DOM.resetConfigBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                config = { ...defaultConfig };
+                populateForm();
+                saveConfigFromForm();
+                showToast("已重置为默认设置");
+            });
+
+            DOM.themeToggleBtn.addEventListener('click', toggleTheme);
+        }
+
+        // Start Application Loop
+        window.onload = function() {
+            initTheme();
+            loadConfig();
+            renderAchievements();
+            initEvents();
+
+            // High frequency update for real-time floating precision (100ms interval for butter smooth feel)
+            setInterval(updateDashboard, 100);
+        };
+    </script>
+</body>
+</html>
